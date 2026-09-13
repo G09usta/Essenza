@@ -183,25 +183,27 @@ if (isset($_GET['buscar']) && isset($_GET['campos'])) {
 
             <div class="tabela-container">
 
-                <table>
+               <table>
+    <thead>
+        <tr>
+            <th>Imagem</th>
+            <th>Nome</th>
+            <th>Marca</th>
+            <th>Tipo</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php while($linha = $resultado->fetch_assoc()){ ?>
+            <tr onclick="marcarLinha(this)">
+                <td><?php if(!empty($linha['cosImagem'])){ ?><img src="<?php echo htmlspecialchars($linha['cosImagem']); ?>" width="80"><?php } ?></td>
+                <td><?php echo htmlspecialchars($linha['cosNome']); ?></td>
+                <td><?php echo htmlspecialchars($linha['cosMarca']); ?></td>
+                <td><?php echo htmlspecialchars($linha['tipoCos']); ?></td>
+            </tr>
+        <?php } ?>
+    </tbody>
+</table>
 
-                    <thead>
-
-                        <tr>
-                            <th>Imagem</th>
-                            <th>Nome</th>
-                            <th>Marca</th>
-                            <th>Tipo</th>
-                            <th>Reciclável</th>
-                            <th>Testado em animal</th>
-                            <th>Vegano</th>
-                            <th>Embalagem Sustentável</th>
-                            <th>Práticas Sustentáveis</th>
-                            <th>Valor Ambiental</th>
-                            <th>Link</th>
-                        </tr>
-
-                    </thead>
 
                     <tbody>
 
@@ -212,13 +214,6 @@ if (isset($_GET['buscar']) && isset($_GET['campos'])) {
                             <td><?php echo htmlspecialchars($linha['cosNome']); ?></td>
                             <td><?php echo htmlspecialchars($linha['cosMarca']); ?></td>
                             <td><?php echo htmlspecialchars($linha['tipoCos']); ?></td>
-                            <td><?php echo htmlspecialchars($linha['cosRecicla']); ?></td>
-                            <td><?php echo htmlspecialchars($linha['cosAnimal']); ?></td>
-                            <td><?php echo htmlspecialchars($linha['cosVegano']); ?></td>
-                            <td><?php echo htmlspecialchars($linha['embalagemSusten']); ?></td>
-                            <td><?php echo htmlspecialchars($linha['pratiSusten']); ?></td>
-                            <td><?php echo htmlspecialchars($linha['valorAmb']); ?></td>
-                            <td><?php if(!empty($linha['cosLink'])){ ?><a href="<?php echo htmlspecialchars($linha['cosLink']); ?>" target="_blank">Ver Produto</a><?php } ?></td>
                         </tr>
 
                     <?php } ?>
@@ -240,6 +235,7 @@ if (isset($_GET['buscar']) && isset($_GET['campos'])) {
     <?php } ?>
 
 </div>
+
 
 </body>
 
