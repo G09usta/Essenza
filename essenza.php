@@ -26,39 +26,62 @@ if (isset($_GET['mostrarTodos'])) {
 }
 
 // 
-elseif (isset($_GET['buscar']) && isset($_GET['campos'])) {
+elseif (isset($_GET['buscar'])) {
     $busca = $_GET['buscar'];
-    $campos = $_GET['campos'];
+    $buscaLike = "%" . $busca . "%";
 
-    $condicoes = [];
-
-    foreach ($campos as $campo) {
-        if (in_array($campo, ['cosNome','cosMarca','tipoCos','cosRecicla','cosAnimal','cosVegano','pratiSusten','embalagemSusten','valorAmb','cosLink','cosImagem'])) {
-            $condicoes[] = "$campo LIKE ?";
-        }
-    }
-
-    if (!empty($condicoes)) {
+    // Verifica se o usuário escolheu um campo específico
+    if (isset($_GET['campoUnico']) && in_array($_GET['campoUnico'], ['cosNome','cosMarca','tipoCos'])) {
+        $campo = $_GET['campoUnico'];
         $sql = "SELECT cosImagem, cosNome, cosMarca, tipoCos, cosRecicla, cosAnimal, cosVegano, pratiSusten, embalagemSusten, cosLink, valorAmb 
                 FROM testando 
-                WHERE " . implode(" OR ", $condicoes);
-
+                WHERE $campo LIKE ?";
         $stmt = $conexao->prepare($sql);
-
-        $parametros = [];
-        $tipos = "";
-
-        foreach ($condicoes as $condicao) {
-            $parametros[] = "%" . $busca . "%";
-            $tipos .= "s";
-        }
-
-        $stmt->bind_param($tipos, ...$parametros);
-        $stmt->execute();
-
-        $resultado = $stmt->get_result();
+        $stmt->bind_param("s", $buscaLike);
+    } else {
+        // Busca automática nos três campos
+        $sql = "SELECT cosImagem, cosNome, cosMarca, tipoCos, cosRecicla, cosAnimal, cosVegano, pratiSusten, embalagemSusten, cosLink, valorAmb 
+                FROM testando 
+                WHERE (cosNome LIKE ? OR cosMarca LIKE ? OR tipoCos LIKE ?)";
+        $stmt = $conexao->prepare($sql);
+        $stmt->bind_param("sss", $buscaLike, $buscaLike, $buscaLike);
     }
+
+    // Filtros adicionais
+    $filtros = [];
+    if (isset($_GET['recicla'])) {
+        $filtros[] = "cosRecicla = 1";
+    }
+    if (isset($_GET['vegano'])) {
+        $filtros[] = "cosVegano = 1";
+    }
+    if (isset($_GET['animal'])) {
+        $filtros[] = "cosAnimal = 0"; // supondo que 0 = não testado
+    }
+    if (isset($_GET['embalagem'])) {
+        $filtros[] = "embalagemSusten = 1";
+    }
+    if (isset($_GET['praticas'])) {
+        $filtros[] = "pratiSusten = 1";
+    }
+
+    if (!empty($filtros)) {
+        $sql .= " AND " . implode(" AND ", $filtros);
+        $stmt = $conexao->prepare($sql);
+        // Reaplica os parâmetros da busca
+        if (isset($campo)) {
+            $stmt->bind_param("s", $buscaLike);
+        } else {
+            $stmt->bind_param("sss", $buscaLike, $buscaLike, $buscaLike);
+        }
+    }
+
+    $stmt->execute();
+    $resultado = $stmt->get_result();
 }
+
+
+
 
 // essa parte é a que pega os produtos de mesmo tipo e maior valor ambiental, é a segunda tabela que aparece quandoa gente seleciona um produto.
 if (isset($_GET['tipoSelecionado']) && isset($_GET['valorSelecionado'])) {
@@ -76,6 +99,7 @@ if (isset($_GET['tipoSelecionado']) && isset($_GET['valorSelecionado'])) {
     $relacionados = $stmtRel->get_result();
 }
 
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -89,31 +113,39 @@ if (isset($_GET['tipoSelecionado']) && isset($_GET['valorSelecionado'])) {
     <h1>Busca de Cosméticos</h1>
 
     <form method="GET">
-        <div class="grupo">
-            <label class="grupo-titulo">Digite sua busca:</label>
-            <input type="text" name="buscar"
-                   value="<?php echo isset($_GET['buscar']) ? htmlspecialchars($_GET['buscar']) : ''; ?>">
-        </div>
+    <div class="grupo">
+        <label class="grupo-titulo">Digite sua busca:</label>
+        <input type="text" name="buscar"
+               placeholder="Digite nome, marca ou tipo..."
+               value="<?php echo isset($_GET['buscar']) ? htmlspecialchars($_GET['buscar']) : ''; ?>">
+    </div>
 
-        <div class="grupo">
-            <span class="grupo-titulo">Escolha os campos da busca:</span>
-            <div class="radio-area">
-                <label><input type="radio" name="campos[]" value="cosNome"> Nome</label>
-                <label><input type="radio" name="campos[]" value="cosMarca"> Marca</label>
-                <label><input type="radio" name="campos[]" value="tipoCos"> Tipo</label>
-                <label><input type="radio" name="campos[]" value="cosRecicla"> Reciclável</label>
-                <label><input type="radio" name="campos[]" value="cosAnimal"> Testado em animal</label>
-                <label><input type="radio" name="campos[]" value="cosVegano"> Vegano</label>
-                <label><input type="radio" name="campos[]" value="embalagemSusten"> Embalagem Sustentável</label>
-                <label><input type="radio" name="campos[]" value="pratiSusten"> Práticas Sustentáveis</label>
-            </div>
+    <div class="grupo">
+        <span class="grupo-titulo">Filtrar por campo específico:</span>
+        <div class="radio-area">
+            <label><input type="radio" name="campoUnico" value="cosNome" <?php if(isset($_GET['campoUnico']) && $_GET['campoUnico']=='cosNome') echo 'checked'; ?>> Nome</label>
+            <label><input type="radio" name="campoUnico" value="cosMarca" <?php if(isset($_GET['campoUnico']) && $_GET['campoUnico']=='cosMarca') echo 'checked'; ?>> Marca</label>
+            <label><input type="radio" name="campoUnico" value="tipoCos" <?php if(isset($_GET['campoUnico']) && $_GET['campoUnico']=='tipoCos') echo 'checked'; ?>> Tipo</label>
         </div>
+    </div>
 
-        <div class="botoes">
-            <button type="submit">Buscar</button>
-            <button type="submit" name="mostrarTodos" value="1">Mostrar Todos</button>
+    <div class="grupo">
+        <span class="grupo-titulo">Filtros adicionais:</span>
+        <div class="checkbox-area">
+            <label><input type="checkbox" name="recicla" value="Sim" <?php if(isset($_GET['recicla'])) echo 'checked'; ?>> Reciclável</label>
+            <label><input type="checkbox" name="animal" value="Sim" <?php if(isset($_GET['animal'])) echo 'checked'; ?>> Testado em animais</label>
+            <label><input type="checkbox" name="vegano" value="Sim" <?php if(isset($_GET['vegano'])) echo 'checked'; ?>> Vegano</label>
+            <label><input type="checkbox" name="embalagem" value="Sim" <?php if(isset($_GET['embalagem'])) echo 'checked'; ?>> Embalagem Sustentável</label>
+            <label><input type="checkbox" name="praticas" value="Sim" <?php if(isset($_GET['praticas'])) echo 'checked'; ?>> Práticas Sustentáveis</label>
         </div>
-    </form>
+    </div>
+
+    <div class="botoes">
+        <button type="submit">Buscar</button>
+        <button type="submit" name="mostrarTodos" value="1">Mostrar Todos</button>
+    </div>
+</form>
+
 
     <?php if($resultado !== null){ ?>
         <?php if($resultado->num_rows > 0){ ?>
